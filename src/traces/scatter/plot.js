@@ -23,7 +23,9 @@ var polygonTester = require('../../lib/polygon').tester;
 module.exports = function plot(gd, plotinfo, cdscatter, transitionOpts, makeOnCompleteCallback) {
     var i, uids, selection, join, onComplete;
 
-    var scatterlayer = plotinfo.plot.select('g.scatterlayer');
+    // TODO plotinfo.plot or plot.plotnoclip
+
+    var scatterlayer = plotinfo.plotnoclip.select('g.scatterlayer');
 
     // If transition config is provided, then it is only a partial replot and traces not
     // updated are removed.

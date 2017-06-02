@@ -325,6 +325,10 @@ function makeSubplotLayer(plotinfo) {
         plotinfo.overzero = joinLayer(plotgroup, 'g', 'overzero');
 
         plotinfo.plot = joinLayer(plotgroup, 'g', 'plot');
+
+        plotinfo.plotnoclip = joinLayer(plotgroup, 'g', 'plotnoclip');
+        joinLayer(plotinfo.plotnoclip, 'g', 'scatterlayer');
+
         plotinfo.overplot = joinLayer(plotgroup, 'g', 'overplot');
 
         plotinfo.xlines = joinLayer(plotgroup, 'path', 'xlines');

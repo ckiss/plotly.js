@@ -168,6 +168,7 @@ module.exports = {
             ].join(' ')
         }
     },
+
     connectgaps: {
         valType: 'boolean',
         dflt: false,
@@ -178,6 +179,15 @@ module.exports = {
             'in the provided data arrays are connected.'
         ].join(' ')
     },
+    cliponaxis: {
+        valType: 'boolean',
+        dflt: true,
+        role: 'info',
+        description: [
+            '...'
+        ].join(' ')
+    },
+
     fill: {
         valType: 'enumerated',
         values: ['none', 'tozeroy', 'tozerox', 'tonexty', 'tonextx', 'toself', 'tonext'],
