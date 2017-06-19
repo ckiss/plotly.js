@@ -169,7 +169,7 @@ exports.lsInner = function(gd) {
             .call(Drawing.setClipUrl, plotinfo.clipId);
 
         plotinfo.plotnoclip
-            .call(Drawing.setTranslate, xa._offset, ya._offset)
+            .call(Drawing.setTranslate, xa._offset, ya._offset);
 
         var xlw = Drawing.crispRound(gd, xa.linewidth, 1),
             ylw = Drawing.crispRound(gd, ya.linewidth, 1),

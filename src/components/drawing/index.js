@@ -62,19 +62,28 @@ drawing.setRect = function(s, x, y, w, h) {
  * @param {sel} sel : d3 selction of node to translate
  * @param {object} xa : corresponding full xaxis object
  * @param {object} ya : corresponding full yaxis object
+ * @param {object} trace : corresponding full trace object
  *
  * @return {boolean} :
  *  true if selection got translated
  *  false if selection could not get translated
  */
-drawing.translatePoint = function(d, sel, xa, ya) {
+drawing.translatePoint = function(d, sel, xa, ya, trace) {
     // put xp and yp into d if pixel scaling is already done
-    var x = d.xp || xa.c2p(d.x),
-        y = d.yp || ya.c2p(d.y);
+    var x = d.xp || xa.c2p(d.x);
+    var y = d.yp || ya.c2p(d.y);
 
-    // ...
+    // TODO generalize!!
+    var mrc = d.mrc || trace.marker.size / 2;
 
-    if(isNumeric(x) && isNumeric(y) && sel.node()) {
+    if(isNumeric(x) && isNumeric(y) && sel.node() &&
+       (!trace.cliponaxis &&
+            x + mrc > xa.c2p(xa.range[0]) &&
+            x - mrc < xa.c2p(xa.range[1]) &&
+            y - mrc < ya.c2p(ya.range[0]) &&
+            y + mrc > ya.c2p(ya.range[1])
+       )
+    ) {
         // for multiline text this works better
         if(sel.node().nodeName === 'text') {
             sel.attr('x', x).attr('y', y);
@@ -250,6 +259,7 @@ function singlePointStyle(d, sel, trace, markerScale, lineScale, marker, markerL
             // handle multi-trace graph edit case
             if(d.ms === 'various' || marker.size === 'various') r = 3;
             else {
+                // TODO move to translate point?
                 r = subTypes.isBubble(trace) ?
                         sizeFn(d.ms) : (marker.size || 6) / 2;
             }

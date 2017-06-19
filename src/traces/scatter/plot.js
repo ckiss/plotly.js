@@ -21,11 +21,27 @@ var linkTraces = require('./link_traces');
 var polygonTester = require('../../lib/polygon').tester;
 
 module.exports = function plot(gd, plotinfo, cdscatter, transitionOpts, makeOnCompleteCallback) {
+    var scatterlayerClipped = plotinfo.plot.select('g.scatterlayer');
+    var scatterlayerNoClip = plotinfo.plotnoclip.select('g.scatterlayer');
+    var cdscatterClipped = [];
+    var cdscatterNoClip = [];
+
+    for(var i = 0; i < cdscatter.length; i++) {
+        var cdi = cdscatter[i];
+
+        if(!cdi[0].trace.cliponaxis) {
+            cdscatterNoClip.push(cdi);
+        } else {
+            cdscatterClipped.push(cdi);
+        }
+    }
+
+    plotOneLayer(gd, plotinfo, scatterlayerClipped, cdscatterClipped, transitionOpts, makeOnCompleteCallback);
+    plotOneLayer(gd, plotinfo, scatterlayerNoClip, cdscatterNoClip, transitionOpts, makeOnCompleteCallback);
+};
+
+function plotOneLayer(gd, plotinfo, scatterlayer, cdscatter, transitionOpts, makeOnCompleteCallback) {
     var i, uids, selection, join, onComplete;
-
-    // TODO plotinfo.plot or plot.plotnoclip
-
-    var scatterlayer = plotinfo.plotnoclip.select('g.scatterlayer');
 
     // If transition config is provided, then it is only a partial replot and traces not
     // updated are removed.
@@ -100,7 +116,7 @@ module.exports = function plot(gd, plotinfo, cdscatter, transitionOpts, makeOnCo
 
     // remove paths that didn't get used
     scatterlayer.selectAll('path:not([d])').remove();
-};
+}
 
 function createFills(gd, scatterlayer) {
     var trace;
@@ -442,7 +458,7 @@ function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transition
         join.each(function(d) {
             var el = d3.select(this);
             var sel = transition(el);
-            hasNode = Drawing.translatePoint(d, sel, xa, ya);
+            hasNode = Drawing.translatePoint(d, sel, xa, ya, trace);
 
             if(hasNode) {
                 Drawing.singlePointStyle(d, sel, trace, markerScale, lineScale, gd);
@@ -476,7 +492,7 @@ function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transition
         join.each(function(d) {
             var g = d3.select(this);
             var sel = transition(g.select('text'));
-            hasNode = Drawing.translatePoint(d, sel, xa, ya);
+            hasNode = Drawing.translatePoint(d, sel, xa, ya, trace);
             if(!hasNode) g.remove();
         });
 
