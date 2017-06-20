@@ -62,7 +62,8 @@
                 "line": {
                     "width": 2
                 }
-            }
+            },
+            "cliponaxis": false
         }
     ],
     "layout": {

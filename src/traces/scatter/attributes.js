@@ -183,6 +183,7 @@ module.exports = {
         valType: 'boolean',
         dflt: true,
         role: 'info',
+        editType: 'doplot',
         description: [
             '...'
         ].join(' ')

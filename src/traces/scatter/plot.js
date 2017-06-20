@@ -21,65 +21,36 @@ var linkTraces = require('./link_traces');
 var polygonTester = require('../../lib/polygon').tester;
 
 module.exports = function plot(gd, plotinfo, cdscatter, transitionOpts, makeOnCompleteCallback) {
-    var scatterlayerClipped = plotinfo.plot.select('g.scatterlayer');
-    var scatterlayerNoClip = plotinfo.plotnoclip.select('g.scatterlayer');
-    var cdscatterClipped = [];
-    var cdscatterNoClip = [];
+    var scatterlayer = plotinfo.plot.select('g.scatterlayer');
+    var join = bindData(gd, plotinfo, cdscatter, scatterlayer);
 
-    for(var i = 0; i < cdscatter.length; i++) {
-        var cdi = cdscatter[i];
+    var scatterlayerNoClip, cdscatterNoClip, joinNoClip;
 
-        if(!cdi[0].trace.cliponaxis) {
-            cdscatterNoClip.push(cdi);
-        } else {
-            cdscatterClipped.push(cdi);
+    if(plotinfo.plotnoclip) {
+        scatterlayerNoClip = plotinfo.plotnoclip.select('g.scatterlayer');
+        cdscatterNoClip = [];
+
+        for(var i = 0; i < cdscatter.length; i++) {
+            var cdi = cdscatter[i];
+
+            if(cdi[0].trace.cliponaxis === false) {
+                cdscatterNoClip.push(cdi);
+            }
         }
+
+        joinNoClip = bindData(gd, plotinfo, cdscatterNoClip, scatterlayerNoClip);
     }
-
-    plotOneLayer(gd, plotinfo, scatterlayerClipped, cdscatterClipped, transitionOpts, makeOnCompleteCallback);
-    plotOneLayer(gd, plotinfo, scatterlayerNoClip, cdscatterNoClip, transitionOpts, makeOnCompleteCallback);
-};
-
-function plotOneLayer(gd, plotinfo, scatterlayer, cdscatter, transitionOpts, makeOnCompleteCallback) {
-    var i, uids, selection, join, onComplete;
 
     // If transition config is provided, then it is only a partial replot and traces not
     // updated are removed.
     var isFullReplot = !transitionOpts;
     var hasTransition = !!transitionOpts && transitionOpts.duration > 0;
 
-    selection = scatterlayer.selectAll('g.trace');
-
-    join = selection.data(cdscatter, function(d) { return d[0].trace.uid; });
-
-    // Append new traces:
-    join.enter().append('g')
-        .attr('class', function(d) {
-            return 'trace scatter trace' + d[0].trace.uid;
-        })
-        .style('stroke-miterlimit', 2);
-
-    // After the elements are created but before they've been draw, we have to perform
-    // this extra step of linking the traces. This allows appending of fill layers so that
-    // the z-order of fill layers is correct.
-    linkTraces(gd, plotinfo, cdscatter);
-
     createFills(gd, scatterlayer);
 
-    // Sort the traces, once created, so that the ordering is preserved even when traces
-    // are shown and hidden. This is needed since we're not just wiping everything out
-    // and recreating on every update.
-    for(i = 0, uids = {}; i < cdscatter.length; i++) {
-        uids[cdscatter[i][0].trace.uid] = i;
-    }
-
-    scatterlayer.selectAll('g.trace').sort(function(a, b) {
-        var idx1 = uids[a[0].trace.uid];
-        var idx2 = uids[b[0].trace.uid];
-        return idx1 > idx2 ? 1 : -1;
-    });
-
     if(hasTransition) {
+        var onComplete;
+
         if(makeOnCompleteCallback) {
             // If it was passed a callback to register completion, make a callback. If
             // this is created, then it must be executed on completion, otherwise the
@@ -103,19 +74,67 @@ function plotOneLayer(gd, plotinfo, scatterlayer, cdscatter, transitionOpts, mak
             scatterlayer.selectAll('g.trace').each(function(d, i) {
                 plotOne(gd, i, plotinfo, d, cdscatter, this, transitionOpts);
             });
+
+            if(scatterlayerNoClip) {
+                scatterlayerNoClip.selectAll('g.trace').each(function(d, i) {
+                    plotOneNoClip(gd, i, plotinfo, d, cdscatter, this, transitionOpts);
+                });
+            }
         });
     } else {
         scatterlayer.selectAll('g.trace').each(function(d, i) {
             plotOne(gd, i, plotinfo, d, cdscatter, this, transitionOpts);
         });
+
+        if(scatterlayerNoClip) {
+            scatterlayerNoClip.selectAll('g.trace').each(function(d, i) {
+                plotOneNoClip(gd, i, plotinfo, d, cdscatter, this, transitionOpts);
+            });
+        }
     }
 
     if(isFullReplot) {
         join.exit().remove();
+        if(joinNoClip) joinNoClip.exit().remove();
     }
 
     // remove paths that didn't get used
     scatterlayer.selectAll('path:not([d])').remove();
+};
+
+function bindData(gd, plotinfo, cdscatter, layer) {
+    var selection = layer.selectAll('g.trace');
+    var join = selection.data(cdscatter, function(d) { return d[0].trace.uid; });
+
+    // Append new traces:
+    join.enter().append('g')
+        .attr('class', function(d) {
+            return 'trace scatter trace' + d[0].trace.uid;
+        })
+        .style('stroke-miterlimit', 2);
+
+    // TODO only have to do for lines, right?
+    //
+    // After the elements are created but before they've been draw, we have to perform
+    // this extra step of linking the traces. This allows appending of fill layers so that
+    // the z-order of fill layers is correct.
+    linkTraces(gd, plotinfo, cdscatter);
+
+    // Sort the traces, once created, so that the ordering is preserved even when traces
+    // are shown and hidden. This is needed since we're not just wiping everything out
+    // and recreating on every update.
+    var uids = {};
+    for(var i = 0; i < cdscatter.length; i++) {
+        uids[cdscatter[i][0].trace.uid] = i;
+    }
+
+    layer.selectAll('g.trace').sort(function(a, b) {
+        var idx1 = uids[a[0].trace.uid];
+        var idx2 = uids[b[0].trace.uid];
+        return idx1 > idx2 ? 1 : -1;
+    });
+
+    return join;
 }
 
 function createFills(gd, scatterlayer) {
@@ -160,11 +179,8 @@ function createFills(gd, scatterlayer) {
 }
 
 function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transitionOpts) {
-    var join, i;
+    var i;
 
-    // Since this has been reorganized and we're executing this on individual traces,
-    // we need to pass it the full list of cdscatter as well as this trace's index (idx)
-    // since it does an internal n^2 loop over comparisons with other traces:
     selectMarkers(gd, idx, plotinfo, cdscatter, cdscatterAll);
 
     var hasTransition = !!transitionOpts && transitionOpts.duration > 0;
@@ -392,7 +408,34 @@ function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transition
         trace._prevPolygons = thisPolygons;
     }
 
+    if(cdscatter[0].trace.cliponaxis !== false) {
+        plotPoints(gd, tr, cdscatter, xa, ya, hasTransition, transition);
+    }
+}
 
+function plotOneNoClip(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transitionOpts) {
+    var hasTransition = !!transitionOpts && transitionOpts.duration > 0;
+
+    function transition(selection) {
+        return hasTransition ? selection.transition() : selection;
+    }
+
+    var trace = cdscatter[0].trace;
+    var tr = d3.select(element);
+    var xa = plotinfo.xaxis;
+    var ya = plotinfo.yaxis;
+
+    // TODO ???
+    tr.call(ErrorBars.plot, plotinfo, transitionOpts);
+
+    if(trace.visible !== true) return;
+
+    transition(tr).style('opacity', trace.opacity);
+
+    plotPoints(gd, tr, cdscatter, xa, ya, hasTransition, transition);
+}
+
+function plotPoints(gd, tr, cdscatter, xa, ya, hasTransition, transition) {
     function visFilter(d) {
         return d.filter(function(v) { return v.vis; });
     }
@@ -519,7 +562,7 @@ function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transition
     var pointSelection = tr.selectAll('.points');
 
     // Join with new data
-    join = pointSelection.data([cdscatter]);
+    var join = pointSelection.data([cdscatter]);
 
     // Transition existing, but don't defer this to an async .transition since
     // there's no timing involved:
@@ -532,6 +575,9 @@ function plotOne(gd, idx, plotinfo, cdscatter, cdscatterAll, element, transition
     join.exit().remove();
 }
 
+// Since this has been reorganized and we're executing this on individual traces,
+// we need to pass it the full list of cdscatter as well as this trace's index (idx)
+// since it does an internal n^2 loop over comparisons with other traces:
 function selectMarkers(gd, idx, plotinfo, cdscatter, cdscatterAll) {
     var xa = plotinfo.xaxis,
         ya = plotinfo.yaxis,

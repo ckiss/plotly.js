@@ -70,19 +70,13 @@ drawing.setRect = function(s, x, y, w, h) {
  */
 drawing.translatePoint = function(d, sel, xa, ya, trace) {
     // put xp and yp into d if pixel scaling is already done
-    var x = d.xp || xa.c2p(d.x);
-    var y = d.yp || ya.c2p(d.y);
+    var x = d.xp = xa.c2p(d.x);
+    var y = d.yp = ya.c2p(d.y);
 
-    // TODO generalize!!
-    var mrc = d.mrc || trace.marker.size / 2;
+    if(!d.mrc)d.mrc = computeMarkerRadius(d, trace);
 
     if(isNumeric(x) && isNumeric(y) && sel.node() &&
-       (!trace.cliponaxis &&
-            x + mrc > xa.c2p(xa.range[0]) &&
-            x - mrc < xa.c2p(xa.range[1]) &&
-            y - mrc < ya.c2p(ya.range[0]) &&
-            y + mrc > ya.c2p(ya.range[1])
-       )
+       (trace.cliponaxis !== false || xa.isPtWithinRange(d) && ya.isPtWithinRange(d))
     ) {
         // for multiline text this works better
         if(sel.node().nodeName === 'text') {
@@ -251,17 +245,13 @@ function singlePointStyle(d, sel, trace, markerScale, lineScale, marker, markerL
     // only scatter & box plots get marker path and opacity
     // bars, histograms don't
     if(Registry.traceIs(trace, 'symbols')) {
-        var sizeFn = makeBubbleSizeFn(trace);
-
         sel.attr('d', function(d) {
             var r;
 
             // handle multi-trace graph edit case
             if(d.ms === 'various' || marker.size === 'various') r = 3;
             else {
-                // TODO move to translate point?
-                r = subTypes.isBubble(trace) ?
-                        sizeFn(d.ms) : (marker.size || 6) / 2;
+                r = computeMarkerRadius(d, trace);
             }
 
             // store the calculated size so hover can use it
@@ -348,6 +338,16 @@ function singlePointStyle(d, sel, trace, markerScale, lineScale, marker, markerL
         if(lineWidth) {
             sel.call(Color.stroke, lineColor);
         }
+    }
+}
+
+function computeMarkerRadius(d, trace) {
+    if(subTypes.isBubble(trace)) {
+        var sizeFn = makeBubbleSizeFn(trace);
+        return sizeFn(d.ms);
+    } else {
+        var marker = trace.marker || {};
+        return (marker.size || 6) / 2;
     }
 }
 
